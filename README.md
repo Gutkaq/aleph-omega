@@ -1,57 +1,46 @@
-Why This Matters
+# aleph-omega
 
-Because we're tired of **approximating** infinity. Of **simulating** the discrete with the continuous. Of **pretending** our math is just a metaphor.
+Packet-based VM with transfinite math kernel and NoC runtime.
 
-The packets in this system carry **actual configurations**—ordinal-indexed vectors in countably infinite dimensions. When they route through the NoC, they're computing **suprema of limit ordinals**. When they hit an ALU, they're performing operations that **category theory actually describes**.
+## What
 
-This isn't "inspired by" transfinite mathematics. This **IS** transfinite mathematics, running on silicon.
+- **Haskell**: Math core for infinite-dimensional configs, code generation
+- **Rust**: NoC simulator (mesh/ring topologies, packet routing)
+- **Goal**: Transfinite computation via self-routing packets
 
-## Current Status
+No OS. No scheduling. Just packets and math.
 
-🚀 **Phase**: Setting up the cathedral while the foundation is still being poured
+## Components
 
-📐 **Math**: Solid (Aleph-Ω kernel defined, symmetries identified)  
-💻 **Code**: Incoming (you're watching us build it in real-time)  
-🔥 **Vibes**: Absolutely unhinged in the best way
+| Component | Language | Purpose |
+|-----------|----------|---------|
+| Math Core | Haskell | Aleph-Ω kernel, dimensions, discrete dynamics |
+| VM Core | Haskell | Packet-based VM (registers, ALU) |
+| Code Gen | Haskell | Translate configs to packet streams |
+| NoC Runtime | Rust | Packet routing, cores, memory (software emulation) |
+| Toolchain | Both | Assembler, linker, simulator |
 
-## The Vision
+## Status
 
-By the time we're done:
-1. You'll write code in an **ℵ_ω-dimensional language**
-2. It'll **collapse** to finite packets via mathematical symmetries
-3. Those packets will **route themselves** through a NoC
-4. And compute things that shouldn't be computable
+🚧 Early development - setting up infrastructure
 
-All without an operating system. All without the lies.
+## Build
 
-## For the Skeptics
+Haskell
 
-"This is impossible."
+cd haskell-core
+stack build
+Rust
 
-Good. The possible is boring.
+cd rust-runtime
+cargo build
 
-"This violates Church-Turing."
+text
 
-Only if you think Church-Turing is the end of the story. We're writing the **epilogue**.
+## Contributing
 
-"Why Haskell and Rust?"
+PRs welcome. See `docs/CONTRIBUTING.md` for standards.
 
-Because Haskell lets us think in **infinite lazy structures** without lying to ourselves, and Rust lets us **not segfault** when infinity hits the hardware.
+## License
 
-## Join Us
-
-If you:
-- Think **packet-based computing** is under-explored
-- Want to see what happens when **transfinite ordinals meet silicon**
-- Believe that **no OS** is not just possible but **necessary**
-
-Then this is your project.
-
-Clone it. Break it. Rebuild it. Push the mathematics further.
-
-Let's make infinity **addressable**.
-
----
-
-*"In the beginning was the ordinal, and the ordinal was with packet, and the packet was computation."*  
-— Book of Aleph-Omega, probably
+MIT
