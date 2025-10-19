@@ -40,5 +40,7 @@ cabal test
 ## Rust
 
 cd rust-runtime
+
 cargo build --release
+
 cargo test
