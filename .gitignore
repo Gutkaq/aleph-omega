@@ -1,9 +1,9 @@
-dist
-dist-*
-cabal-dev
+# Haskell
+dist-newstyle/
+dist/
+cabal-dev/
 *.o
 *.hi
-*.hie
 *.chi
 *.chs.h
 *.dyn_o
@@ -21,3 +21,14 @@ cabal.project.local
 cabal.project.local~
 .HTF/
 .ghc.environment.*
+
+# Editor/IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
