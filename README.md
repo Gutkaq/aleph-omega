@@ -1,6 +1,6 @@
 # aleph-omega
 
-Packet-based VM with transfinite math kernel and NoC runtime.
+Packet-based VM with transfinite math kernel and rust runtime
 
 ## What
 
