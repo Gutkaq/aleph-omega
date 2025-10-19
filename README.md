@@ -24,18 +24,20 @@ No OS. No scheduling. Just packets and math.
 
 🚧 Early development - setting up infrastructure
 
-*GHC**: 9.6.7
+- **GHC**: 9.6.7
 - **rustc**: 1.90.0
 - **OS**: Debian (or compatible Linux)
 
 ## Build
-
-Haskell
+## Haskell
 
 cd haskell-core
+
 cabal build
+
 cabal test
-Rust
+
+## Rust
 
 cd rust-runtime
 cargo build --release
