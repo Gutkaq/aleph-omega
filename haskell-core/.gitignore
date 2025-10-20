@@ -1,0 +1,28 @@
+# Haskell build artifacts
+dist-newstyle/
+dist/
+.cabal-sandbox/
+cabal.sandbox.config
+cabal.project.local
+*.o
+*.hi
+*.dyn_o
+*.dyn_hi
+*.prof
+*.aux
+*.hp
+*.chi
+
+# Editor temp files
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Stack
+.stack-work/
+
+# Misc
+2
+*.bak
+*.tmp
