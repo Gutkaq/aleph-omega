@@ -1,71 +1,124 @@
-module AlephOmega.Types
-  ( -- * Core Types
-  Nat
-  , Direction
-  , Config(..)
-  -- * INDUCTIVE KERNEL FAMILY
-  , Co -- k_0: base case (constant zero from empty)
-  , K (..)  -- K_n: cell in inductive family {K_n | n (- N}
-  , mkK -- Make K_n cell (inductive constructor)
-  , buildKernels -- Build N+1 kernels: [K_0, .... , K_N]
-  , buildConfigs -- Genarate N+1 configs from kernels
-  -- * Base constructor/operations
-  , zeroConfig -- Zero in C_inf
-  , zeroCo -- Zero K_0 cell
-  , applyK -- Apply K_n to previous [K_{n-1}]
-  ) where
+{-# LANGUAGE GADTs, DeriveGeneric, StandaloneDeriving #-}
 
-  -- Natural numbers N for cordinates (0, 1, 2, ....)
-type Nat = Integer
+module AlephOmega.Types where
 
-  -- Direction labels for counatable infinite dimensions ("dim_0", "x", etc..)
-type Direction = String
+import GHC.Generics (Generic)
+import Prelude hiding (pi)
 
-newtype Config = Config { unConfig :: [(Direction, Nat)] }
-  deriving (Show, Eq)
+type Direction = Integer
 
-  -- K_0 = Co : base cell constant {} -> zero Config
-newtype Co = Co { unCo :: Config}
-  deriving (Show, Eq)
+data Config = Config [(Direction, Integer)]
+  deriving (Show, Eq, Generic)
 
-  
-  -- | K: cell in inductive family K_n
-  -- K_n = functions from family of K_{n-1} cells to C_∞  
-  -- Wrapped as newtype; unK takes [previous K_{n-1}] -> config
-  -- Full kernel: lim K_inf = ∪ K_n (radiative inductive limit)
-  -- From math: K is family of cells, each maps previous to C_inf
-newtype K = K { unK :: [K] -> Config }
-
-  -- mkK Inductive constructor for cell K_n
-  -- Simple : Ignores inputs and outputs delta config in "dim_n" (unit 1)
-  -- From math : explicit construction f: K_{n-1} -> C_inf; here constant delta
-mkK :: Int -> K 
-mkK n = K(const (Config [("dim_" ++ show n, 1)]))
-
-  -- zeroConfig: origin in C_inf (all dims are 0, sparse empty list)
-  -- From math: Default/zero function output 
 zeroConfig :: Config
 zeroConfig = Config []
 
-  -- zeroCo: base k0 = Co ( constant zero config)
-zeroCo :: Co 
-zeroCo = Co zeroConfig
+supp :: Config -> [Direction]
+supp (Config xs) = [d | (d, v) <- xs, v /= 0]
 
-  -- ApplyK : run k_n on list of previous [K_{n-1}]
-applyK :: K -> [K] -> Config
-applyK k prev = unK k prev 
+data K0 = K0
+  deriving (Show, Eq, Generic)
 
-  -- | buildKernels: inductive family [K_0, K_1, ..., K_N]
-  -- K_0 = constant zero; K_n = mkK n for n≥1
--- General for any N; simulates inductive process up to finite N
-buildKernels :: Int -> [K]
-buildKernels n =
-  let k0 = K (const zeroConfig)  -- K_0 as constant zero
-  in take (n+1) (k0 : [mkK i | i <- [1..]])
+deltaC :: Config
+deltaC = Config [(0, 1)]
 
-  -- | buildConfigs: [c_0, ..., c_N] where c_i = apply K_i to previous kernels
-  -- Generates N+1 configs from the family; each c_n (- C_inf
-buildConfigs :: Int -> [Config]
-buildConfigs n =
-  let kernels = buildKernels n
-  in [applyK k (take i kernels) | (k, i) <- zip kernels [0..n]]
+data KInf where
+  KInf0 :: K0 -> KInf
+  KInf1 :: Config -> KInf
+  KInf2 :: (Config -> Config) -> KInf
+  KInf3 :: ((Config -> Config) -> Config) -> KInf
+  KInf4 :: (((Config -> Config) -> Config) -> Config) -> KInf
+
+instance Show KInf where
+  show (KInf0 _) = "KInf0"
+  show (KInf1 c) = "KInf1(" ++ show c ++ ")"
+  show (KInf2 _) = "KInf2"
+  show (KInf3 _) = "KInf3"
+  show (KInf4 _) = "KInf4"
+
+instance Eq KInf where
+  KInf0 _ == KInf0 _ = True
+  KInf1 c1 == KInf1 c2 = c1 == c2
+  _ == _ = False
+
+levelOf :: KInf -> Integer
+levelOf (KInf0 _) = 0
+levelOf (KInf1 _) = 1
+levelOf (KInf2 _) = 2
+levelOf (KInf3 _) = 3
+levelOf (KInf4 _) = 4
+
+iota :: Integer -> KInf -> KInf
+iota 0 (KInf0 _) = KInf1 deltaC
+iota 1 (KInf1 c) = KInf2 (\prev -> if prev == c then deltaC else zeroConfig)
+iota 2 (KInf2 _) = KInf3 (const deltaC)
+iota 3 (KInf3 _) = KInf4 (const deltaC)
+iota _ _ = error "Invalid iota level or cell mismatch"
+
+buildRadiativeFamily :: Integer -> [KInf]
+buildRadiativeFamily 0 = [KInf0 K0]
+buildRadiativeFamily n = 
+  let prev = buildRadiativeFamily (n - 1)
+      lastCell = last prev
+      nextCell = iota (n - 1) lastCell
+  in prev ++ [nextCell]
+
+aut :: Integer -> KInf -> KInf
+aut _ (KInf0 k) = KInf0 k
+aut _ (KInf1 c) = KInf1 c
+aut _ (KInf2 f) = KInf2 f
+aut _ (KInf3 f) = KInf3 f
+aut _ (KInf4 f) = KInf4 f
+
+pi :: Integer -> KInf -> KInf
+pi 0 (KInf1 _) = KInf0 K0
+pi 0 (KInf2 _) = KInf0 K0
+pi 0 (KInf3 _) = KInf0 K0
+pi 0 (KInf4 _) = KInf0 K0
+pi 1 (KInf2 f) = KInf1 (f zeroConfig)
+pi 1 (KInf3 _) = KInf1 zeroConfig
+pi 1 (KInf4 _) = KInf1 zeroConfig
+pi 2 (KInf3 f) = KInf2 (\x -> f (\_ -> x))
+pi 2 (KInf4 _) = KInf2 id
+pi 3 (KInf4 f) = KInf3 (\x -> f (\_ -> x zeroConfig))
+pi _ _ = KInf0 K0
+
+radiativeClosure :: [KInf] -> [KInf]
+radiativeClosure family = 
+  let n = length family - 1
+      indices = [0..n]
+      newCells = [iota (fromIntegral k) (family !! k) | k <- indices, k < length family]
+      filtered = filter (`notElem` family) newCells
+  in if null filtered then family else family ++ filtered
+
+isRadiativelyClosed :: [KInf] -> Bool
+isRadiativelyClosed family = 
+  let closed = radiativeClosure family
+  in length closed == length family
+
+data AlephOmegaField = AOF 
+  { aofCell :: KInf
+  , aofIota :: Integer -> KInf -> KInf
+  , aofPi :: Integer -> KInf -> KInf
+  , aofAut :: Integer -> KInf -> KInf
+  , aofFamily :: [KInf]
+  }
+
+instance Show AlephOmegaField where
+  show (AOF cell _ _ _ family) = 
+    "AOF(" ++ show cell ++ ", <ops>, " ++ show (length family) ++ " cells)"
+
+satisfiesAxioms :: AlephOmegaField -> Bool
+satisfiesAxioms (AOF cell iotaFn piFn _ family) = 
+  let cellLevel = levelOf cell
+      validRange = [0..(cellLevel - 1)]
+  in if null validRange then True
+     else all (\k -> 
+       if k >= fromIntegral (length family) then True
+       else let embedded = iotaFn k cell
+                projected = piFn k embedded
+            in case (cell, projected) of
+                 (KInf0 _, KInf0 _) -> True
+                 (KInf1 c1, KInf1 c2) -> c1 == c2
+                 _ -> False) validRange
+
