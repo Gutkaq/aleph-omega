@@ -20,6 +20,8 @@ library
   exposed-modules:
       AlephOmega.Types
       , AlephOmega.Theorems
+      , AlephOmega.VectorSpace
+      , AlephOmega.Compiler
   other-modules:
       Paths_aleph_omega
   hs-source-dirs:
@@ -27,6 +29,8 @@ library
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
   build-depends:
       base >=4.7 && <5
+    , containers >=0.6
+    , vector >=0.12
   default-language: Haskell2010
 
 test-suite tests
@@ -40,5 +44,7 @@ test-suite tests
   build-depends:
       aleph-omega
     , base >=4.7 && <5
+    , containers >=0.6
+    , vector >=0.12
   default-language: Haskell2010
 

@@ -7,6 +7,7 @@ module AlephOmega.Theorems
   , theorem1_directedSystem
   , theorem2_nonTrivialAutomorphism
   , theorem3_radiativeSymmetryField
+  , swapPermutation
   ) where
 
 import AlephOmega.Types
@@ -29,14 +30,20 @@ proposition3_commutativity a =
   let n = levelOf a
       step1 = iota n a
       step2 = iota (n + 1) step1
-      p1 = AlephOmega.Types.pi (n + 2) step2
-      p2 = AlephOmega.Types.pi (n + 1) p1
-  in a == p2
+      projected = AlephOmega.Types.pi (n + 2) step2
+      finalProjected = AlephOmega.Types.pi (n + 1) projected
+  in a == finalProjected
 
 theorem1_directedSystem :: [KInf] -> Bool
 theorem1_directedSystem family =
   if null family then True
   else all proposition2_leftInverseProjection family
+
+swapPermutation :: KInf -> KInf -> KInf -> KInf
+swapPermutation a b x
+  | x == a = b
+  | x == b = a
+  | otherwise = x
 
 theorem2_nonTrivialAutomorphism :: KInf -> Bool
 theorem2_nonTrivialAutomorphism a = aut (levelOf a) a == a
