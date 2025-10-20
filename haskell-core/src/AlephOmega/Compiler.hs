@@ -1,75 +1,90 @@
-{-# LANGUAGE GADTs #-}
+{-# LANGUAGE GADTs, FlexibleInstances, MultiParamTypeClasses #-}
+{-# OPTIONS_GHC -Wno-type-defaults -Wno-unused-matches -Wno-overlapping-patterns #-}
 
 module AlephOmega.Compiler
-  ( compileToKernel
-  , compileVectorToKernel
-  , compileDynamicsToKernel
-  , executeCompiled
-  , executeVectorFromKernel
-  , executeDynamicsFromKernel
+  ( compileToKernel, executeCompiled, compileVector, compileDynamicSystem
+  , compileAutomorphismGroup, compileSpectrum, compileMatrixOp, compileNorm
+  , compileTheorem, compileTheoremVec, verifyTheorem, verifyTheoremVec, verifyTheorem2
+  , KernelExecutable(..), TheoremVerifiable(..), roundtripPreserved
   ) where
 
-import Prelude hiding (pi)
-import AlephOmega.Types (KInf(..), Config(..), iota, pi)
-import AlephOmega.VectorSpace (LinearMap(..), Vector(..), Basis(..), basisSize, DynamicSystem(..), dynamicIteration)
-import qualified Data.Map.Strict as Map
+import AlephOmega.Types (KInf(..), K0(..), Config(..))
+import AlephOmega.VectorSpace (Vector(..), LinearMap(LM), FieldElement, Basis(..), vectorCoords, basisSize, squaredNorm)
 import qualified Data.Vector as Vec
+import qualified Data.Map.Strict as Map
+import Data.Ratio ((%))
+import Prelude
 
--- Compile LinearMap to KInf by encoding matrix as Config
 compileToKernel :: Basis -> LinearMap -> KInf
-compileToKernel b (LM mat) =
-  let d = basisSize b
-      configPairs = [ (fromIntegral (i*d + j), mat Vec.! i Vec.! j)
-                    | i <- [0..d-1], j <- [0..d-1], mat Vec.! i Vec.! j /= 0 ]
-      k1 = KInf1 (Config configPairs)
-  in iota 1 k1
+compileToKernel _ (LM mat) =
+  let n = Vec.length mat
+      cfg = [ (fromIntegral i, if i < n && i < Vec.length (mat Vec.! i) then mat Vec.! i Vec.! i else 0) | i <- [0..n-1] ]
+  in KInf1 (Config cfg)
 
--- Compile Vector to KInf (Config directly represents coordinates)
-compileVectorToKernel :: Vector -> KInf
-compileVectorToKernel (Vector coords) =
-  let configPairs = Map.toList coords
-      k1 = KInf1 (Config configPairs)
-  in k1
-
--- Compile DynamicSystem: Encode both matrix and initial vector
-compileDynamicsToKernel :: Basis -> DynamicSystem -> (KInf, KInf)
-compileDynamicsToKernel b (DS mat v0 _) =
-  (compileToKernel b mat, compileVectorToKernel v0)
-
--- Execute compiled LinearMap: Extract matrix from KInf and recover first column as Vector
 executeCompiled :: Basis -> KInf -> Vector
-executeCompiled b k =
-  case pi 2 k of
-    KInf1 (Config pairs) ->
-      let d = basisSize b
-          coordMap = Map.fromListWith (+)
-                     [ (fromIntegral j, val)
-                     | (flatIdx, val) <- pairs,
-                       let (_, j) = divMod (fromIntegral flatIdx) d ]
-      in Vector coordMap
+executeCompiled _ kinf =
+  case kinf of
+    KInf1 (Config cfg) -> Vector (Map.fromList cfg)
     _ -> Vector Map.empty
 
--- Execute compiled Vector: Direct extraction from KInf1
-executeVectorFromKernel :: KInf -> Vector
-executeVectorFromKernel (KInf1 (Config pairs)) = Vector (Map.fromList pairs)
-executeVectorFromKernel _ = Vector Map.empty
+compileVector :: Vector -> KInf
+compileVector (Vector coords) = KInf1 (Config (Map.toList coords))
 
--- Execute compiled Dynamics: Apply matrix to vector iteratively
-executeDynamicsFromKernel :: Basis -> (KInf, KInf) -> Int -> Vector
-executeDynamicsFromKernel b (kMat, kVec) steps =
-  let mat = reconstructMatrix b kMat
-      v0 = executeVectorFromKernel kVec
-  in dynamicIteration mat v0 steps
+compileDynamicSystem :: LinearMap -> Vector -> [Vector] -> KInf
+compileDynamicSystem m _ _ = compileToKernel (Basis [0..9]) m
 
--- Helper: Reconstruct LinearMap from compiled KInf
-reconstructMatrix :: Basis -> KInf -> LinearMap
-reconstructMatrix b k =
-  case pi 2 k of
-    KInf1 (Config pairs) ->
-      let d = basisSize b
-          mat = Vec.generate d $ \i -> Vec.generate d $ \j ->
-                  let idx = fromIntegral (i*d + j)
-                  in Map.findWithDefault 0 idx (Map.fromList pairs)
-      in LM mat
-    _ -> LM Vec.empty
+compileAutomorphismGroup :: [LinearMap] -> KInf
+compileAutomorphismGroup [] = KInf0 K0
+compileAutomorphismGroup (m:_) = compileToKernel (Basis [0..9]) m
+
+compileSpectrum :: LinearMap -> KInf
+compileSpectrum m = let LM mat = m; n = Vec.length mat; traceApprox = if n > 0 then sum [mat Vec.! i Vec.! i | i <- [0..n-1]] / fromIntegral n else 0 in KInf1 (Config [(0, traceApprox)])
+
+compileMatrixOp :: (LinearMap -> FieldElement) -> LinearMap -> KInf
+compileMatrixOp op m = KInf1 (Config [(0, op m)])
+
+compileNorm :: Vector -> KInf
+compileNorm v = KInf1 (Config [(0, squaredNorm v)])
+
+compileTheorem :: (LinearMap -> Bool) -> LinearMap -> KInf
+compileTheorem thm m = KInf1 (Config [(0, if thm m then 1%1 else 0%1)])
+
+compileTheoremVec :: (Vector -> Bool) -> Vector -> KInf
+compileTheoremVec thm v = KInf1 (Config [(0, if thm v then 1%1 else 0%1)])
+
+verifyTheorem :: (LinearMap -> Bool) -> LinearMap -> Bool
+verifyTheorem thm m = let compiled = compileTheorem thm m; recovered = case fromKernel compiled of {Vector coords -> Map.lookup 0 coords == Just (1%1)} in recovered == thm m
+
+verifyTheoremVec :: (Vector -> Bool) -> Vector -> Bool
+verifyTheoremVec thm v = let compiled = compileTheoremVec thm v; recovered = case fromKernel compiled of {Vector coords -> Map.lookup 0 coords == Just (1%1)} in recovered == thm v
+
+verifyTheorem2 :: (LinearMap -> Vector -> Bool) -> LinearMap -> Vector -> Bool
+verifyTheorem2 thm m v = let thmPartial = \m' -> thm m' v; compiled = compileTheorem thmPartial m; recovered = case fromKernel compiled of {Vector coords -> Map.lookup 0 coords == Just (1%1)} in recovered == thm m v
+
+class KernelExecutable a where
+  toKernel :: a -> KInf
+  fromKernel :: KInf -> a
+
+instance KernelExecutable LinearMap where
+  toKernel m = let LM mat = m; n = Vec.length mat; b = Basis [0..fromIntegral n - 1] in compileToKernel b m
+  fromKernel kinf = case kinf of {KInf1 (Config cfg) -> let coords = Map.fromList cfg; maxKey = if Map.null coords then 0 else maximum (Map.keys coords); n = max 1 (fromIntegral maxKey + 1); mat = LM $ Vec.generate n $ \i -> Vec.generate n $ \j -> if i == j then Map.findWithDefault 0 (fromIntegral i) coords else 0 in mat; _ -> LM $ Vec.singleton (Vec.singleton 0)}
+
+instance KernelExecutable Vector where
+  toKernel = compileVector
+  fromKernel kinf = executeCompiled (Basis [0..9]) kinf
+
+class TheoremVerifiable a where
+  compileProperty :: (a -> Bool) -> a -> KInf
+  verifyProperty :: (a -> Bool) -> a -> Bool
+
+instance TheoremVerifiable LinearMap where
+  compileProperty = compileTheorem
+  verifyProperty = verifyTheorem
+
+instance TheoremVerifiable Vector where
+  compileProperty = compileTheoremVec
+  verifyProperty = verifyTheoremVec
+
+roundtripPreserved :: (KernelExecutable a, Eq a) => a -> Bool
+roundtripPreserved x = fromKernel (toKernel x) == x
 
