@@ -22,6 +22,8 @@ library
       , AlephOmega.VectorSpace
       , AlephOmega.Compiler
       , AlephOmega.Proofs
+      , AlephOmega.GraphTheory
+      , AlephOmega.GraphTheorems
   other-modules:
       Paths_aleph_omega
   hs-source-dirs:

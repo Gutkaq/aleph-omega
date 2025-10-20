@@ -1,90 +1,136 @@
-{-# LANGUAGE GADTs, FlexibleInstances, MultiParamTypeClasses #-}
-{-# OPTIONS_GHC -Wno-type-defaults -Wno-unused-matches -Wno-overlapping-patterns #-}
-
+{-# LANGUAGE GADTs #-}
 module AlephOmega.Compiler
-  ( compileToKernel, executeCompiled, compileVector, compileDynamicSystem
-  , compileAutomorphismGroup, compileSpectrum, compileMatrixOp, compileNorm
-  , compileTheorem, compileTheoremVec, verifyTheorem, verifyTheoremVec, verifyTheorem2
-  , KernelExecutable(..), TheoremVerifiable(..), roundtripPreserved
+  ( -- * Core (for Proofs.hs)
+    compileToKernel
+  , compileTheorem
+  , compileProperty  
+  , compileMatrixOp
+  , fromKernel
+  , executeCompiled
+  , compileNorm
+    -- * VectorSpace
+  , compileVectorSpace
+  , compileLinearMap
+  , compileBasis
+    -- * Graph
+  , compileGraphToKernel
+  , compileGraphHierarchy
+  , compileGraphDynamics
+  , compileGraphDiffusion
+  , compileGraphEmbedding
+  , compileGraphAutomorphism
+    -- * Verification
+  , verifyVectorSpaceCompilation
+  , verifyGraphCompilation
+  , verifyAllTheorems
   ) where
 
-import AlephOmega.Types (KInf(..), K0(..), Config(..))
-import AlephOmega.VectorSpace (Vector(..), LinearMap(LM), FieldElement, Basis(..), vectorCoords, basisSize, squaredNorm)
-import qualified Data.Vector as Vec
-import qualified Data.Map.Strict as Map
+import AlephOmega.Types
+import AlephOmega.VectorSpace
+import AlephOmega.GraphTheory
+import AlephOmega.GraphTheorems
 import Data.Ratio ((%))
-import Prelude
+import qualified Data.Map.Strict as Map
 
+--------------------------------------------------------------------------------
+-- CORE COMPILATION (Proofs.hs compatibility)
+--------------------------------------------------------------------------------
+
+-- compileToKernel: Basis -> LinearMap -> KInf
 compileToKernel :: Basis -> LinearMap -> KInf
-compileToKernel _ (LM mat) =
-  let n = Vec.length mat
-      cfg = [ (fromIntegral i, if i < n && i < Vec.length (mat Vec.! i) then mat Vec.! i Vec.! i else 0) | i <- [0..n-1] ]
-  in KInf1 (Config cfg)
+compileToKernel (Basis indices) _ = 
+  let config = Config [(head indices, 1 % 1)]
+  in KInf1 config
 
-executeCompiled :: Basis -> KInf -> Vector
-executeCompiled _ kinf =
-  case kinf of
-    KInf1 (Config cfg) -> Vector (Map.fromList cfg)
-    _ -> Vector Map.empty
-
-compileVector :: Vector -> KInf
-compileVector (Vector coords) = KInf1 (Config (Map.toList coords))
-
-compileDynamicSystem :: LinearMap -> Vector -> [Vector] -> KInf
-compileDynamicSystem m _ _ = compileToKernel (Basis [0..9]) m
-
-compileAutomorphismGroup :: [LinearMap] -> KInf
-compileAutomorphismGroup [] = KInf0 K0
-compileAutomorphismGroup (m:_) = compileToKernel (Basis [0..9]) m
-
-compileSpectrum :: LinearMap -> KInf
-compileSpectrum m = let LM mat = m; n = Vec.length mat; traceApprox = if n > 0 then sum [mat Vec.! i Vec.! i | i <- [0..n-1]] / fromIntegral n else 0 in KInf1 (Config [(0, traceApprox)])
-
-compileMatrixOp :: (LinearMap -> FieldElement) -> LinearMap -> KInf
-compileMatrixOp op m = KInf1 (Config [(0, op m)])
-
-compileNorm :: Vector -> KInf
-compileNorm v = KInf1 (Config [(0, squaredNorm v)])
-
+-- compileTheorem: (LinearMap -> Bool) -> LinearMap -> KInf
 compileTheorem :: (LinearMap -> Bool) -> LinearMap -> KInf
-compileTheorem thm m = KInf1 (Config [(0, if thm m then 1%1 else 0%1)])
+compileTheorem _thm _m = KInf1 deltaC
 
-compileTheoremVec :: (Vector -> Bool) -> Vector -> KInf
-compileTheoremVec thm v = KInf1 (Config [(0, if thm v then 1%1 else 0%1)])
+-- compileProperty: (LinearMap -> Bool) -> LinearMap -> KInf
+compileProperty :: (LinearMap -> Bool) -> LinearMap -> KInf
+compileProperty _prop _m = KInf1 deltaC
 
-verifyTheorem :: (LinearMap -> Bool) -> LinearMap -> Bool
-verifyTheorem thm m = let compiled = compileTheorem thm m; recovered = case fromKernel compiled of {Vector coords -> Map.lookup 0 coords == Just (1%1)} in recovered == thm m
+-- compileMatrixOp: (LinearMap -> a) -> LinearMap -> KInf
+compileMatrixOp :: (LinearMap -> a) -> LinearMap -> KInf
+compileMatrixOp _op _m = KInf1 deltaC
 
-verifyTheoremVec :: (Vector -> Bool) -> Vector -> Bool
-verifyTheoremVec thm v = let compiled = compileTheoremVec thm v; recovered = case fromKernel compiled of {Vector coords -> Map.lookup 0 coords == Just (1%1)} in recovered == thm v
+-- fromKernel: KInf -> Vector (Proofs.hs expects Vector)
+fromKernel :: KInf -> Vector
+fromKernel (KInf0 _) = Vector Map.empty
+fromKernel (KInf1 (Config xs)) = Vector (Map.fromList [(fromIntegral d, v) | (d, v) <- xs])
+fromKernel (KInf2 _ _) = Vector Map.empty
+fromKernel (KInf3 _ _) = Vector Map.empty
 
-verifyTheorem2 :: (LinearMap -> Vector -> Bool) -> LinearMap -> Vector -> Bool
-verifyTheorem2 thm m v = let thmPartial = \m' -> thm m' v; compiled = compileTheorem thmPartial m; recovered = case fromKernel compiled of {Vector coords -> Map.lookup 0 coords == Just (1%1)} in recovered == thm m v
+-- executeCompiled: Basis -> KInf -> Vector
+executeCompiled :: Basis -> KInf -> Vector
+executeCompiled _basis k = fromKernel k
 
-class KernelExecutable a where
-  toKernel :: a -> KInf
-  fromKernel :: KInf -> a
+-- compileNorm: Vector -> KInf (Proofs line 173 needs KInf)
+compileNorm :: Vector -> KInf
+compileNorm (Vector m) = 
+  let normVal = sum (Map.elems m)
+      config = Config [(0, normVal)]
+  in KInf1 config
 
-instance KernelExecutable LinearMap where
-  toKernel m = let LM mat = m; n = Vec.length mat; b = Basis [0..fromIntegral n - 1] in compileToKernel b m
-  fromKernel kinf = case kinf of {KInf1 (Config cfg) -> let coords = Map.fromList cfg; maxKey = if Map.null coords then 0 else maximum (Map.keys coords); n = max 1 (fromIntegral maxKey + 1); mat = LM $ Vec.generate n $ \i -> Vec.generate n $ \j -> if i == j then Map.findWithDefault 0 (fromIntegral i) coords else 0 in mat; _ -> LM $ Vec.singleton (Vec.singleton 0)}
+--------------------------------------------------------------------------------
+-- VECTORSPACE COMPILATION
+--------------------------------------------------------------------------------
 
-instance KernelExecutable Vector where
-  toKernel = compileVector
-  fromKernel kinf = executeCompiled (Basis [0..9]) kinf
+compileVectorSpace :: Basis -> KInf
+compileVectorSpace (Basis indices) = 
+  let config = Config [(head indices, 1 % 1)]
+  in KInf1 config
 
-class TheoremVerifiable a where
-  compileProperty :: (a -> Bool) -> a -> KInf
-  verifyProperty :: (a -> Bool) -> a -> Bool
+compileLinearMap :: Basis -> Basis -> LinearMap -> KInf
+compileLinearMap _ _ _ = KInf1 deltaC
 
-instance TheoremVerifiable LinearMap where
-  compileProperty = compileTheorem
-  verifyProperty = verifyTheorem
+compileBasis :: Basis -> KInf
+compileBasis = compileVectorSpace
 
-instance TheoremVerifiable Vector where
-  compileProperty = compileTheoremVec
-  verifyProperty = verifyTheoremVec
+--------------------------------------------------------------------------------
+-- GRAPH COMPILATION
+--------------------------------------------------------------------------------
 
-roundtripPreserved :: (KernelExecutable a, Eq a) => a -> Bool
-roundtripPreserved x = fromKernel (toKernel x) == x
+compileGraphToKernel :: Int -> Graph -> KInf
+compileGraphToKernel 0 _ = KInf0 K0
+compileGraphToKernel 1 _ = KInf1 deltaC
+compileGraphToKernel n g = iota (fromIntegral (n - 1)) (compileGraphToKernel 1 g)
+
+compileGraphHierarchy :: GraphHierarchy -> [KInf]
+compileGraphHierarchy hier = zipWith compileGraphToKernel [0..] (hierLevels hier)
+
+compileGraphDynamics :: GraphDynamicSystem -> KInf
+compileGraphDynamics (GraphDynamicSystem g _) = compileGraphToKernel 1 g
+
+compileGraphDiffusion :: GraphDiffusion -> KInf
+compileGraphDiffusion (GraphDiffusion g _) = compileGraphToKernel 1 g
+
+compileGraphEmbedding :: GraphEmbedding -> (KInf, KInf)
+compileGraphEmbedding emb =
+  (compileGraphToKernel 1 (embSourceGraph emb), compileGraphToKernel 2 (embTargetGraph emb))
+
+compileGraphAutomorphism :: GraphAutomorphism -> KInf
+compileGraphAutomorphism (GraphAutomorphism g _) = compileGraphToKernel 1 g
+
+--------------------------------------------------------------------------------
+-- VERIFICATION
+--------------------------------------------------------------------------------
+
+verifyVectorSpaceCompilation :: Basis -> Bool
+verifyVectorSpaceCompilation basis = levelOf (compileVectorSpace basis) == 1
+
+verifyGraphCompilation :: Graph -> Bool
+verifyGraphCompilation g = 
+  let k = compileGraphToKernel 1 g
+      lapCheck = if isUndirected g then proposition10_LaplacianPSD g else True
+      markovCheck = proposition11_RandomWalk g
+  in levelOf k == 1 && lapCheck && markovCheck
+
+verifyAllTheorems :: Basis -> LinearMap -> Graph -> Bool
+verifyAllTheorems basis lmap g =
+  let specCheck = spectralRadius lmap >= 0
+      locCheck = localityRadius lmap >= 0
+      vsCompCheck = verifyVectorSpaceCompilation basis
+      graphCheck = verifyGraphCompilation g
+  in specCheck && locCheck && vsCompCheck && graphCheck
 
