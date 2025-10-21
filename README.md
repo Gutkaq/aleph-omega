@@ -21,20 +21,28 @@ VM Executor	Rust	Zero-overhead runtime execution	✅ Complete
 Event Log	Rust	Distributed state management	🚧 Planned
 Structure
 
-text
+
 aleph-omega/
+
 ├── haskell-core/    # Proofs (~850 LOC)
 │   └── src/AlephOmega/
+
 │       ├── Types.hs
+
 │       ├── VectorSpace.hs
+
 │       ├── GraphTheory.hs
+
 │       ├── Proofs.hs
+
 │       └── Compiler.hs
 │
+
 └── kinf-vm/         # VM (~200 LOC)
     └── src/
-        ├── opcode.rs
-        └── vm.rs
+            ├── opcode.rs
+        
+            └── vm.rs
 
 What It Does
 
