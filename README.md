@@ -1,46 +1,47 @@
-# aleph-omega
+ℵω (Aleph-Omega)
 
-Packet-based VM with transfinite math kernel and rust runtime
+Computational system with provable correctness. Proofs in Haskell, execution in Rust.
+Quick Start
 
-## What
+Test proofs:
 
-- **Haskell**: Math core for infinite-dimensional configs, code generation
-- **Rust**: NoC simulator (mesh/ring topologies, packet routing)
-- **Goal**: Transfinite computation via self-routing packets
+bash
+cd haskell-core && cabal test
 
-No OS. No scheduling. Just packets and math.
+Run VM:
 
-## Components
+bash
+cd kinf-vm && cargo run --example simple
 
-| Component | Language | Purpose |
-|-----------|----------|---------|
-| Math Core | Haskell | Aleph-Ω kernel, dimensions, discrete dynamics |
-| VM Core | Haskell | Packet-based VM (registers, ALU) |
-| Code Gen | Haskell | Translate configs to packet streams |
-| NoC Runtime | Rust | Packet routing, cores, memory (software emulation) |
-| Toolchain | Both | Assembler, linker, simulator |
+Architecture
+Layer	Language	Purpose	Status
+Haskell Proofs	Haskell	Compile-time verification, proof extraction	✅ Complete
+Bytecode Compiler	Haskell	Haskell → VM bytecode	🚧 Partial
+VM Executor	Rust	Zero-overhead runtime execution	✅ Complete
+Event Log	Rust	Distributed state management	🚧 Planned
+Structure
 
-## Status
+text
+aleph-omega/
+├── haskell-core/    # Proofs (~850 LOC)
+│   └── src/AlephOmega/
+│       ├── Types.hs
+│       ├── VectorSpace.hs
+│       ├── GraphTheory.hs
+│       ├── Proofs.hs
+│       └── Compiler.hs
+│
+└── kinf-vm/         # VM (~200 LOC)
+    └── src/
+        ├── opcode.rs
+        └── vm.rs
 
-🚧 Early development - setting up infrastructure
+What It Does
 
-- **GHC**: 9.6.7
-- **rustc**: 1.90.0
-- **OS**: Debian (or compatible Linux)
+Haskell: KInf hierarchy (K₀ → K₁ → K₂ → Kω), vector spaces, graph theory, 14 verified propositions
+Rust VM: Stack-based bytecode executor for Add, Mul, LevelUp operations
+Status
 
-## Build
-## Haskell
-
-cd haskell-core
-
-cabal build
-
-cabal test
-
-## Rust
-
-cd rust-runtime
-
-cargo build --release
-
-cargo test
+✅ Haskell proofs complete
+✅ VM core working
+🚧 Bytecode compiler (next)

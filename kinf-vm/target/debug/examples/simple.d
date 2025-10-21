@@ -1,0 +1,1 @@
+/home/super/omega/aleph-omega/kinf-vm/target/debug/examples/simple: /home/super/omega/aleph-omega/kinf-vm/examples/simple.rs /home/super/omega/aleph-omega/kinf-vm/src/lib.rs /home/super/omega/aleph-omega/kinf-vm/src/opcode.rs /home/super/omega/aleph-omega/kinf-vm/src/vm.rs
