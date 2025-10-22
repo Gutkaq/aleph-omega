@@ -21,21 +21,6 @@ VM Executor	Rust	Zero-overhead runtime execution	✅ Complete
 Event Log	Rust	Distributed state management	🚧 Planned
 Structure
 
-text
-aleph-omega/
-├── haskell-core/    # Proofs (~850 LOC)
-│   └── src/AlephOmega/
-│       ├── Types.hs
-│       ├── VectorSpace.hs
-│       ├── GraphTheory.hs
-│       ├── Proofs.hs
-│       └── Compiler.hs
-│
-└── kinf-vm/         # VM (~200 LOC)
-    └── src/
-        ├── opcode.rs
-        └── vm.rs
-
 What It Does
 
 Haskell: KInf hierarchy (K₀ → K₁ → K₂ → Kω), vector spaces, graph theory, 14 verified propositions
